@@ -42,7 +42,7 @@ program rdramses
   real(kind=8)::xxmin, xxmax, yymin, yymax, zzmin, zzmax
   character(len=1)::dir
   integer::lmax=0, typ=1
-  logical::kpc=.false., hydro=.false., makemap=.true., maxrho=.false., maxval=.false., sum=.false., psd=.false., psdm=.false., grav=.false., gravinp=.false., q=.false., p=.false., part=.false., id=.false., ns=.false.
+  logical::kpc=.false., hydro=.false., makemap=.true., maxrho=.false., maxval=.false., sum=.false., psd=.false., psdm=.false., grav=.false., gravinp=.false., q=.false., p=.false., part=.false., id=.false., ns=.false., ttensor=.false., ttinp=.false.
 
   integer::ncpu, ndim, nx, ny, nz, nlevelmax, ngridmax, nboundary, ngrid_current
   integer::twotondim, levelmin, bit_length, maxdom, ndom, ncpu_read, nvarh
@@ -230,6 +230,9 @@ program rdramses
         case ('-q')
           q = .true.
           i = i-1
+        case ('-ttensor')
+          ttensor = .true.
+          i = i-1
         case ('-rhomin')
           call getarg(i+1,arg)
           read (arg,*) rhomin
@@ -325,6 +328,10 @@ program rdramses
 
 
     ! set variables (must be done here in case of nml reading)
+    if(ttensor) then 
+      ttinp = .true.
+      gravinp = .true.
+    endif
     if(grav) gravinp = .true.
     if(psdm) psd = .true.
     if(ns .OR. id) part = .true.
@@ -333,7 +340,7 @@ program rdramses
       ns = .true.
       p = .true.
     endif
-    if(hydro .OR. q .OR. (rand > 0) .OR. grav .OR. (pdf > 0) .OR. ns .OR. id .OR. (sfr > 0)) makemap = .false.
+    if(hydro .OR. q .OR. (rand > 0) .OR. grav .OR. (pdf > 0) .OR. ns .OR. id .OR. (sfr > 0) .OR. ttensor) makemap = .false.
     if(cube > 0 .or. cubex > 0) kpc = .true.
     if(len(TRIM(out)).ne.0) out = '_'//TRIM(out)
 
@@ -666,11 +673,13 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
           outvalunit = 'Myr^-2'
           scale_map = 1./(scale_tmyr**2)
           gravinp=.true.
+          ttinp=.true.
         case (19) ! tidal force (max eigenvalue) normalized to gravity
           outval = 'tideg'
           outvalunit = ' '
           scale_map = 1.0
           gravinp=.true.
+          ttinp=.true.
         case (20) ! shear
           outval = 'shear'
           outvalunit = 'Myr^-1'
@@ -687,6 +696,11 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
           outval = 'solturb'
           outvalunit = 'km/s/pc'
           scale_map = scale_vkms / scale_lpc
+        case (100) ! tidal tensor
+          outval = 'tide'
+          outvalunit = 'Myr^-2'
+          scale_map = 1./(scale_tmyr**2)
+          gravinp=.true.
         case default ! density
           outval = 'rho'
           outvalunit = 'cm^-3'
@@ -1151,7 +1165,7 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
   
           if(gravinp) then
             allocate(varg(1:ngrida,1:twotondim,1:ndim))
-            if(typ == 18 .or. typ == 19) allocate(tt(1:ngrida,1:twotondim,1:3,1:3))
+            if(ttinp) allocate(tt(1:ngrida,1:twotondim,1:3,1:3))
           endif
   
           if(typ == 20 .or. typ == 21) allocate(sh(1:ngrida,1:twotondim,1:3,1:3))
@@ -1381,7 +1395,7 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
                   endif ! end makemap
         
   
-                  if(typ == 18 .or. typ == 19) then ! tidal field
+                  if(ttinp) then ! tidal field
                     do j=1,3
                       if(mod(ind,2) == 0) then
                         tt(i,ind,1,j) = varg(i,ind,j)-varg(i,ind-1,j)
@@ -1402,13 +1416,13 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
                     tt(i,ind,:,:) = tt(i,ind,:,:) / (boxlen*dx)
 
                     ! put tidal tensor in diagonal form (see Renaud et al. 2008)
-                    call eigenval(tt(i,ind,1,1),tt(i,ind,1,2),tt(i,ind,1,3),tt(i,ind,2,2),tt(i,ind,2,3),tt(i,ind,3,3),lambda1,lambda2,lambda3) ! warning: lambda's are only dF and NOT dF/dx.
-                    if(typ == 18) then
-                      map(i) = lambda1 / (boxlen*dx) * rho(i) ! density-weighted main tidal force
-                    else
+                    call eigenval(tt(i,ind,1,1),tt(i,ind,1,2),tt(i,ind,1,3),tt(i,ind,2,2),tt(i,ind,2,3),tt(i,ind,3,3),lambda1,lambda2,lambda3)
+                    if(typ == 19) then
                       fgrav = sqrt(varg(i,ind,1)**2+varg(i,ind,2)**2+varg(i,ind,3)**2)
 !                     map(i) = sqrt(lambda1**2+lambda2**2+lambda3**2) / fgrav * rho(i) ! density-weighted ratio of tidal to total grav force
-                      map(i) = lambda1 / fgrav * rho(i) ! density-weighted ratio of tidal to total grav force
+                      map(i) = lambda1 * (boxlen*dx) / fgrav * rho(i) ! density-weighted ratio of tidal to total grav force (= rho * dF / Fgrav)
+                    else ! typ==18 and ttensor
+                      map(i) = lambda1 * rho(i) ! density-weighted main tidal force ( = rho * dF/dx)
                     endif
                   endif ! end tides
   
@@ -1452,6 +1466,12 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
                   if(var(i,ind,1) > rhomin .AND. var(i,ind,1) < rhomax) then ! density selection (ascii modes only)
   
                     mass=var(i,ind,1)*(boxlen*dx)**3
+
+                    if(ttensor) then
+                      ! tidal tensor output: x, y, z, tensor(9 terms), eigenvalues(3 terms)
+                      write(3, '(15e20.6)') (x(i,1)-0.5)*boxlen*scale_lkpc, (x(i,2)-0.5)*boxlen*scale_lkpc, (x(i,3)-0.5)*boxlen*scale_lkpc, tt(i,ind,1,1)*scale_map, tt(i,ind,1,2)*scale_map, tt(i,ind,1,3)*scale_map, tt(i,ind,1,2)*scale_map, tt(i,ind,2,2)*scale_map, tt(i,ind,2,3)*scale_map, tt(i,ind,1,3)*scale_map, tt(i,ind,2,3)*scale_map, tt(i,ind,3,3)*scale_map, lambda1*scale_map, lambda2*scale_map, lambda3*scale_map
+                    endif
+
 
                     if(q) then
                       ! q output: x, y, z, map
@@ -1533,7 +1553,7 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
   
           if(gravinp) then
             deallocate(varg)
-            if(typ == 18 .or. typ == 19) deallocate(tt)
+            if(ttinp) deallocate(tt)
           endif
   
           if(typ == 20 .or. typ == 21) deallocate(sh)
