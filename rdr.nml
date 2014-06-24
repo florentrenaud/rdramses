@@ -1,0 +1,69 @@
+&RDR
+!out='foo'
+!lmax=12
+
+!!! Volume selection
+!xmin=0.0
+!xmax=1.0
+!ymin=0.0
+!ymax=1.0
+!zmin=0.0
+!zmax=1.0
+!xcen=0.0
+!ycen=0.0
+!zcen=0.0
+!kpc=.false.
+!cube=10.0
+!cubex=10.0
+!cubey=20.0
+!cubez=30.0
+
+!!! Grid modes
+!hydro=.false.
+!q=.false.
+!grav=.false.
+!rand=0.1
+
+!!! Density selection
+!rhomin=1e-3
+!rhomax=1e3
+
+
+!!! PDF
+!pdf=100
+!pdfmin=1e-3
+!pdfmax=1e5
+
+!!! Fits
+!dir='z'
+!maxval=.false.
+!maxrho=.false.
+!sum=.false.
+!typ=1
+
+!!! PSD
+!psd=.false.
+!psdm=.false.
+
+
+!!! Particle selection
+!pstep=10
+!pmmin=1.e3
+!pmmax=2.e5
+
+!!! Particle fits
+!p=.false.
+!pix=256
+
+!!! Particle ascii
+!part=.false.
+!ns=.false.
+!pamin=2.0
+!pamax=10.0
+!id=.false.
+
+!!! SFR
+!sfr=1.0
+!eta_sn=0.2
+!f_w=0
+/
