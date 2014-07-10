@@ -444,6 +444,7 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
   pamin = pamin / scale_tmyr
   pamax = pamax / scale_tmyr
   agesn = agesn / scale_tmyr
+  sfr = sfr / scale_tmyr
   xcen = xcen / scale_lkpc
   ycen = ycen / scale_lkpc
   zcen = zcen / scale_lkpc
@@ -1972,6 +1973,8 @@ subroutine eigenval(t0,t1,t2,t3,t4,t5,lambda1,lambda2,lambda3)
     lambda3 = lambda2
     lambda2 = tmp
   endif
+
+
   if(lambda2 > lambda1) then
     tmp = lambda2
     lambda2 = lambda1
