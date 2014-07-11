@@ -437,6 +437,7 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
   pamin = pamin / scale_tmyr
   pamax = pamax / scale_tmyr
   agesn = agesn / scale_tmyr
+  sfr = sfr / scale_tmyr
   xcen = xcen / scale_lkpc
   ycen = ycen / scale_lkpc
   zcen = zcen / scale_lkpc
