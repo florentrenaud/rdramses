@@ -40,9 +40,10 @@ program rdramses
   character(len=14)::void_str
   real(KIND=8)::xmin=0, xmax=1, ymin=0, ymax=1, zmin=0, zmax=1, cube=0, cubex=0, cubey=0, cubez=0, xcen=0, ycen=0, zcen=0, rhomin=1e-20, rhomax=1e20
   real(kind=8)::xxmin, xxmax, yymin, yymax, zzmin, zzmax
+  real(kind=8)::offsetx=0, offsety=0, offsetz=0
   character(len=1)::dir
   integer::lmax=0, typ=1
-  logical::kpc=.false., hydro=.false., makemap=.true., maxrho=.false., maxval=.false., sum=.false., psd=.false., psdm=.false., grav=.false., gravinp=.false., q=.false., p=.false., part=.false., id=.false., ns=.false.
+  logical::kpc=.false., hydro=.false., makemap=.true., maxrho=.false., maxval=.false., sum=.false., psd=.false., psdm=.false., grav=.false., gravinp=.false., q=.false., p=.false., part=.false., id=.false., ns=.false., cen=.false.
 
   integer::ncpu, ndim, nx, ny, nz, nlevelmax, ngridmax, nboundary, ngrid_current
   integer::twotondim, levelmin, bit_length, maxdom, ndom, ncpu_read, nvarh
@@ -151,7 +152,7 @@ program rdramses
   integer::iargc
   character(len=8)::opt
   character(len=128)::arg
-  namelist /rdr/ out, lmax, xmin, xmax, ymin, ymax, zmin, zmax, xcen, ycen, zcen, kpc, cube, cubex, cubey, cubez, hydro, q, rhomin, rhomax, rand, grav, pdf, dir, maxval, maxrho, sum, typ, psd, psdm
+  namelist /rdr/ out, lmax, xmin, xmax, ymin, ymax, zmin, zmax, xcen, ycen, zcen, kpc, cube, cubex, cubey, cubez, cen, hydro, q, rhomin, rhomax, rand, grav, pdf, dir, maxval, maxrho, sum, typ, psd, psdm
 ! particle nml
 
   real(kind=8)::scale_l,scale_t,scale_d, scale_lkpc, scale_lpc, scale_dhcc, scale_tmyr, scale_tyr, scale_msun, scale_vkms, scale_temk, scale_forc, scale_surf, scale_map
@@ -216,6 +217,9 @@ program rdramses
         case ('-cube')
           call getarg(i+1,arg)
           read (arg,*) cube
+        case ('-cen')
+          cen = .true.
+          i = i-1
         case ('-d')
           call getarg(i+1,arg)
           read (arg,*) cubex
@@ -491,6 +495,16 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
     zmax = zmax/boxlen + 0.5
   endif ! xmin and co are now in fraction of boxlen (between 0 and 1)
 
+  if(cen) then
+    offsetx = (xmin+xmax)/2.
+    offsety = (ymin+ymax)/2.
+    offsetz = (zmin+zmax)/2.
+  else
+    offsetx = 0.5
+    offsety = 0.5
+    offsetz = 0.5
+  endif
+
 
 
 !!! extraction volume splitting
@@ -610,9 +624,11 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
         case (5) ! Pressure
           outval = 'P'
           outvalunit = '?'
+          scale_map = 1.0
         case (6) ! Passive scalar
           outval = 'passive'
           outvalunit = '?'
+          scale_map = 1.0
         case (7) ! Temperature
           outval = 'T'
           outvalunit = 'K'
@@ -698,6 +714,8 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
     out = '_'//TRIM(outval)//out
   endif
 
+  if(cen) out = '_centered'//out
+
   if (lmax < 10) then
     write(nlev,'(I1)') lmax
   else
@@ -737,14 +755,6 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
       if(id) open(3, file='rdr_'//TRIM(nchar)//TRIM(out)//'.partid')
     endif
 
-
-	xmin = (xmin-0.5) *boxlen
-	xmax = (xmax-0.5) *boxlen
-	ymin = (ymin-0.5) *boxlen
-	ymax = (ymax-0.5) *boxlen
-	zmin = (zmin-0.5) *boxlen
-	zmax = (zmax-0.5) *boxlen
-
     nselect = 0
 
     do k=1,ncpu ! Loop over CPU files
@@ -765,7 +775,7 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
                         
       do i=1,ndim
         read(1) m
-        x(1:npart,i) = m-0.5*boxlen
+        x(1:npart,i) = m/boxlen !m-0.5*boxlen
       end do 
 
       do i=1,ndim
@@ -794,9 +804,9 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
 
           if(part) then
             if(ns) then
-              write(3,fmt='(8(1x,E15.8))'), x(i,:)*scale_lkpc, v(i,:)*scale_vkms, m(i)*scale_msun, agetmp*scale_tmyr
+              write(3,fmt='(8(1x,E15.8))'), (x(i,1)-offsetx)*boxlen*scale_lkpc, (x(i,2)-offsety)*boxlen*scale_lkpc, (x(i,3)-offsetz)*boxlen*scale_lkpc, v(i,:)*scale_vkms, m(i)*scale_msun, agetmp*scale_tmyr
             else
-              write(3,fmt='(7(1x,E15.8))'), x(i,:)*scale_lkpc, v(i,:)*scale_vkms, m(i)*scale_msun
+              write(3,fmt='(7(1x,E15.8))'), (x(i,1)-offsetx)*boxlen*scale_lkpc, (x(i,2)-offsety)*boxlen*scale_lkpc, (x(i,3)-offsetz)*boxlen*scale_lkpc, v(i,:)*scale_vkms, m(i)*scale_msun
             endif
           endif
 
@@ -1456,13 +1466,13 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
 
                     if(q) then
                       ! q output: x, y, z, map
-                      write(3, '(4e20.6)') (x(i,1)-0.5)*boxlen*scale_lkpc, (x(i,2)-0.5)*boxlen*scale_lkpc, (x(i,3)-0.5)*boxlen*scale_lkpc, map(i)/var(i,ind,1)*scale_map
+                      write(3, '(4e20.6)') (x(i,1)-offsetx)*boxlen*scale_lkpc, (x(i,2)-offsety)*boxlen*scale_lkpc, (x(i,3)-offsetz)*boxlen*scale_lkpc, map(i)/var(i,ind,1)*scale_map
                     endif
 
   
                     if(hydro) then
                       ! normal output: x, y, z, vx, vy, vz, rho, lev, mass, T
-                      write(3, '(7e20.6,1I5,2e20.6)') (x(i,1)-0.5)*boxlen*scale_lkpc, (x(i,2)-0.5)*boxlen*scale_lkpc, (x(i,3)-0.5)*boxlen*scale_lkpc, var(i,ind,2)*scale_vkms, var(i,ind,3)*scale_vkms, var(i,ind,4)*scale_vkms, var(i,ind,1)*scale_dhcc, ilevel, mass*scale_msun, var(i,ind,5)/var(i,ind,1)*scale_temk
+                      write(3, '(7e20.6,1I5,2e20.6)') (x(i,1)-offsetx)*boxlen*scale_lkpc, (x(i,2)-offsety)*boxlen*scale_lkpc, (x(i,3)-offsetz)*boxlen*scale_lkpc, var(i,ind,2)*scale_vkms, var(i,ind,3)*scale_vkms, var(i,ind,4)*scale_vkms, var(i,ind,1)*scale_dhcc, ilevel, mass*scale_msun, var(i,ind,5)/var(i,ind,1)*scale_temk
                     endif
   
                     if(rand > 0.0) then
@@ -1475,7 +1485,7 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
                         ry = (ry-0.5)*dx
                         rz = (rz-0.5)*dx
                         ! random mode output: x, y, z
-                        write(3, '(3e20.6)') (x(i,1)-0.5+rx)*boxlen*scale_lkpc,(x(i,2)-0.5+ry)*boxlen*scale_lkpc,(x(i,3)-0.5+rz)*boxlen*scale_lkpc
+                        write(3, '(3e20.6)') (x(i,1)-offsetx+rx)*boxlen*scale_lkpc,(x(i,2)-offsety+ry)*boxlen*scale_lkpc,(x(i,3)-offsetz+rz)*boxlen*scale_lkpc
                       enddo
                     endif
   
@@ -1487,7 +1497,7 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
   
                     if(grav) then
                       ! hydro output + gravitational force: x, y, z, vx, vy, vz, rho, lev, mass, T, fx, fy, fz
-                      write(3, '(7e20.6,1I5,5e20.6)') (x(i,1)-0.5)*boxlen*scale_lkpc, (x(i,2)-0.5)*boxlen*scale_lkpc, (x(i,3)-0.5)*boxlen*scale_lkpc, var(i,ind,2)*scale_vkms, var(i,ind,3)*scale_vkms, var(i,ind,4)*scale_vkms, var(i,ind,1)*scale_dhcc, ilevel, mass*scale_msun, var(i,ind,5)/var(i,ind,1)*scale_temk, varg(i,ind,1)*scale_forc, varg(i,ind,2)*scale_forc, varg(i,ind,3)*scale_forc
+                      write(3, '(7e20.6,1I5,5e20.6)') (x(i,1)-offsetx)*boxlen*scale_lkpc, (x(i,2)-offsetx)*boxlen*scale_lkpc, (x(i,3)-offsetx)*boxlen*scale_lkpc, var(i,ind,2)*scale_vkms, var(i,ind,3)*scale_vkms, var(i,ind,4)*scale_vkms, var(i,ind,1)*scale_dhcc, ilevel, mass*scale_msun, var(i,ind,5)/var(i,ind,1)*scale_temk, varg(i,ind,1)*scale_forc, varg(i,ind,2)*scale_forc, varg(i,ind,3)*scale_forc
                     endif
   
                   endif ! end density selection
