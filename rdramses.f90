@@ -872,16 +872,19 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
     map2 = 0.
   
     ! pixel size
-    dx = boxlen*(xxmax-xxmin)/nxmap
-    dy = boxlen*(yymax-yymin)/nymap
+    dx = (xxmax-xxmin)/nxmap
+    dy = (yymax-yymin)/nymap
 
     do i=1, npart
-      bx = floor((xselect(i,idim)-(xxmin-0.5) *boxlen)/dx)+1
-      by = floor((xselect(i,jdim)-(yymin-0.5) *boxlen)/dy)+1
+!      bx = floor((xselect(i,idim)-(xxmin-0.5) *boxlen)/dx)+1
+!      by = floor((xselect(i,jdim)-(yymin-0.5) *boxlen)/dy)+1
+      bx = floor((xselect(i,idim)-xxmin) / dx)+1
+      by = floor((xselect(i,jdim)-yymin) / dy)+1
+
       map2(bx,by) = map2(bx,by) + mselect(i)*pstep ! simple non-smoothing version
     enddo
 
-    map2 = map2 / (dx*dy) * scale_surf ! [Msun/pc^2]
+    map2 = map2 / (dx*dy * boxlen * boxlen) * scale_surf ! [Msun/pc^2]
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!! END PART ONLY
