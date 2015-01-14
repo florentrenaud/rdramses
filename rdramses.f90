@@ -876,8 +876,6 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
     dy = (yymax-yymin)/nymap
 
     do i=1, npart
-!      bx = floor((xselect(i,idim)-(xxmin-0.5) *boxlen)/dx)+1
-!      by = floor((xselect(i,jdim)-(yymin-0.5) *boxlen)/dy)+1
       bx = floor((xselect(i,idim)-xxmin) / dx)+1
       by = floor((xselect(i,jdim)-yymin) / dy)+1
 
@@ -1282,31 +1280,30 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
                 if(ix>=grid(ilevel)%imin.and.iy>=grid(ilevel)%jmin.and.ix<=grid(ilevel)%imax.and.iy<=grid(ilevel)%jmax.and.iz>=grid(ilevel)%kmin.and.iz<=grid(ilevel)%kmax) then
   
                   if(makemap .or. q) then
-                    rho(i) = var(i,ind,1)
-                    ! Extract variable (every quantity should be multiplyed by rho here. The normalization will be done later, for the average but ALSO for maxval and maxrho)
+                    ! Extract variable
                     select case (typ)
                       case (-1)
-                        map(i) = icpu*rho(i)
+                        map(i) = icpu
                       case (0)
-                        map(i) = ilevel*rho(i)
+                        map(i) = ilevel
                       case (1) ! Density
-                        map(i) = var(i,ind,1)*rho(i)
+                        map(i) = var(i,ind,1)
                       case (2) ! x-velocity
-                        map(i) = var(i,ind,2)*rho(i)
+                        map(i) = var(i,ind,2)
                       case (3) ! y-velocity
-                        map(i) = var(i,ind,3)*rho(i)
+                        map(i) = var(i,ind,3)
                       case (4) ! z-velocity
-                        map(i) = var(i,ind,4)*rho(i)
+                        map(i) = var(i,ind,4)
                       case (5) ! Pressure
-                        map(i) = var(i,ind,5)*rho(i)
+                        map(i) = var(i,ind,5)
                       case (6) ! Passive scalar
-                        map(i) = var(i,ind,6)*rho(i)
+                        map(i) = var(i,ind,6)
                       case (7) ! Temperature
-                        map(i) = var(i,ind,5) ! / density * density   (divide to get the temperature from pressure, and multiply to have the density-weighted temperature.)
-                      case (8) ! Speed of sound = SQRT(gamma * P/rho)     ( * density to get the density-weighted value)
-                        map(i) = sqrt(5./3.* var(i,ind,5) * rho(i))
+                        map(i) = var(i,ind,5)/var(i,ind,1)
+                      case (8) ! Speed of sound = SQRT(gamma * P/rho)
+                        map(i) = sqrt(5./3.* var(i,ind,5) / var(i,ind,1) )
                       case (9) ! Jeans length = sqrt(gamma * P / rho) * sqrt(pi / G / rho))   (* density to get the density-weighted value)
-                        map(i) = sqrt(var(i,ind,5)) * 2.28823 ! * sqrt(5/3 * 3.14) = 2.28823
+                        map(i) = sqrt(var(i,ind,5)) / var(i,ind,1) * 2.28823 ! * sqrt(5/3 * 3.14) = 2.28823
                       case (10) ! Velocity dispersion
                         if(ind==1) then ! compute the dispersion in the oct only once.
                           do j=1, twotondim
@@ -1315,21 +1312,21 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
                             vdispm(i) = vdispm(i) + var(i,j,1)
                           end do
                         endif
-                        map(i) = sqrt(abs(vdisp2(i) / vdispm(i) - (vdisp1(i) / vdispm(i))**2)) * rho(i) ! apply a different density weight for all cells of the oct
+                        map(i) = sqrt(abs(vdisp2(i) / vdispm(i) - (vdisp1(i) / vdispm(i))**2)) ! apply a different density weight for all cells of the oct
                       case (11) ! 2D velocity
-                        map(i) = rho(i) * sqrt(var(i,ind,idim+1)**2+var(i,ind,jdim+1)**2)
+                        map(i) = sqrt(var(i,ind,idim+1)**2+var(i,ind,jdim+1)**2)
                       case (12) ! 3D velocity
-                        map(i) = rho(i) * sqrt(var(i,ind,2)**2+var(i,ind,3)**2+var(i,ind,4)**2)
+                        map(i) = sqrt(var(i,ind,2)**2+var(i,ind,3)**2+var(i,ind,4)**2)
                       case (13) ! 2D gravitational force
-                        map(i) = rho(i) * sqrt(varg(i,ind,1)**2+varg(i,ind,2)**2)
+                        map(i) = sqrt(varg(i,ind,1)**2+varg(i,ind,2)**2)
                       case (14) ! 3D gravitational force
-                        map(i) = rho(i) * sqrt(varg(i,ind,1)**2+varg(i,ind,2)**2+varg(i,ind,3)**2)
+                        map(i) = sqrt(varg(i,ind,1)**2+varg(i,ind,2)**2+varg(i,ind,3)**2)
                       case (15) ! x-gravitational force
-                        map(i) = rho(i) * varg(i,ind,1)
+                        map(i) = varg(i,ind,1)
                       case (16) ! y-gravitational force
-                        map(i) = rho(i) * varg(i,ind,2)
+                        map(i) = varg(i,ind,2)
                       case (17) ! z-gravitational force
-                        map(i) = rho(i) * varg(i,ind,3)
+                        map(i) = varg(i,ind,3)
                       case (18) ! Tidal force
                         ! will be computed below
                       case (19) ! Tidal force, normalized to gravity
@@ -1357,7 +1354,7 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
                         nablav(i,ind) = nablav(i,ind) + var(i,8,4)-var(i,4,4)
       
                         nablav(i,ind) = nablav(i,ind) / 4. ! each axis was counted 4 times, average over cells in grid
-                        map(i) = nablav(i,ind) * rho(i) / (2.*boxlen*dx)
+                        map(i) = nablav(i,ind) / (2.*boxlen*dx)
                       case (23) ! Solenoidal turbulence
                         nablav1(i,ind) = 0
                         nablav1(i,ind) = nablav1(i,ind) + (var(i,3,4)-var(i,1,4)) / 4.
@@ -1390,7 +1387,7 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
                         nablav3(i,ind) = nablav3(i,ind) - (var(i,8,2)+var(i,7,2)) / 4.
       
                         nablav1(i,ind) = sqrt(nablav1(i,ind)**2+nablav2(i,ind)**2+nablav3(i,ind)**2)
-                        map(i) = nablav1(i,ind) * rho(i) /(2.*boxlen*dx)
+                        map(i) = nablav1(i,ind) /(2.*boxlen*dx)
                     end select
                   endif ! end makemap
         
@@ -1418,11 +1415,11 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
                     ! put tidal tensor in diagonal form (see Renaud et al. 2008)
                     call eigenval(tt(i,ind,1,1),tt(i,ind,1,2),tt(i,ind,1,3),tt(i,ind,2,2),tt(i,ind,2,3),tt(i,ind,3,3),lambda1,lambda2,lambda3) ! warning: lambda's are only dF and NOT dF/dx.
                     if(typ == 18) then
-                      map(i) = lambda1 / (boxlen*dx) * rho(i) ! density-weighted main tidal force
+                      map(i) = lambda1 / (boxlen*dx)
                     else
                       fgrav = sqrt(varg(i,ind,1)**2+varg(i,ind,2)**2+varg(i,ind,3)**2)
-!                     map(i) = sqrt(lambda1**2+lambda2**2+lambda3**2) / fgrav * rho(i) ! density-weighted ratio of tidal to total grav force
-                      map(i) = lambda1 / fgrav * rho(i) ! density-weighted ratio of tidal to total grav force
+!                     map(i) = sqrt(lambda1**2+lambda2**2+lambda3**2) / fgrav ! ratio of tidal to total grav force
+                      map(i) = lambda1 / fgrav ! ratio of tidal to total grav force
                     endif
                   endif ! end tides
   
@@ -1456,9 +1453,9 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
                     sh(i,ind,:,:) = sh(i,ind,:,:)/(boxlen*dx)  ! dv / dr = Omega
 
                     if(typ == 20) then
-                      map(i) = sqrt(sh(i,ind,1,2)**2+sh(i,ind,1,3)**2+sh(i,ind,2,3)**2) * rho(i) ! density weighted Omega
+                      map(i) = sqrt(sh(i,ind,1,2)**2+sh(i,ind,1,3)**2+sh(i,ind,2,3)**2) ! Omega
                     else
-                      map(i) = (sh(i,ind,1,2)**2+sh(i,ind,1,3)**2+sh(i,ind,2,3)**2)/4.18879 ! density-weighted omega^2 / (4/3 pi G rho) * rho (* rho for the weight ; all in Ramses units because ratio is dimensionless)
+                      map(i) = (sh(i,ind,1,2)**2+sh(i,ind,1,3)**2+sh(i,ind,2,3)**2)/4.18879 / var(i,ind,1) ! omega^2 / (4/3 pi G rho) (all in Ramses units because ratio is dimensionless)
                     endif
                   endif ! end shear
   
@@ -1469,7 +1466,7 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
 
                     if(q) then
                       ! q output: x, y, z, map
-                      write(3, '(4e20.6)') (x(i,1)-offsetx)*boxlen*scale_lkpc, (x(i,2)-offsety)*boxlen*scale_lkpc, (x(i,3)-offsetz)*boxlen*scale_lkpc, map(i)/var(i,ind,1)*scale_map
+                      write(3, '(4e20.6)') (x(i,1)-offsetx)*boxlen*scale_lkpc, (x(i,2)-offsety)*boxlen*scale_lkpc, (x(i,3)-offsetz)*boxlen*scale_lkpc, map(i)*scale_map
                     endif
 
   
@@ -1518,17 +1515,22 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
                     if(maxval)then
                       if(grid(ilevel)%map(ix,iy)<map(i))then
                         grid(ilevel)%map(ix,iy)=map(i) ! update the variable map
-                        grid(ilevel)%rho(ix,iy)=rho(i) ! update the weight map with the density at *this* position
+                        grid(ilevel)%rho(ix,iy)=var(i,ind,1)  ! not important ! update the weight map with the density at *this* position
                       endif
                     else
                       if(maxrho)then
-                        if(grid(ilevel)%rho(ix,iy)<rho(i))then
+                        if(grid(ilevel)%rho(ix,iy)<var(i,ind,1))then
                           grid(ilevel)%map(ix,iy)=map(i) ! update the variable map
-                          grid(ilevel)%rho(ix,iy)=rho(i) ! update the weight map with the density at *this* position
+                          grid(ilevel)%rho(ix,iy)=var(i,ind,1) ! update the weight map with the density at *this* position
                         endif
-                      else ! average or sum
-                        grid(ilevel)%map(ix,iy)=grid(ilevel)%map(ix,iy)+map(i)*dxline*weight/(zzmax-zzmin)
-                        grid(ilevel)%rho(ix,iy)=grid(ilevel)%rho(ix,iy)+rho(i)*dxline*weight/(zzmax-zzmin)
+                      else
+                        if(sum) then
+                          grid(ilevel)%map(ix,iy)=grid(ilevel)%map(ix,iy)+map(i)
+                          grid(ilevel)%rho(ix,iy)=grid(ilevel)%rho(ix,iy)+var(i,ind,1)
+                        else ! density weighted average
+                          grid(ilevel)%map(ix,iy)=grid(ilevel)%map(ix,iy)+map(i)*var(i,ind,1)*dxline*weight/(zzmax-zzmin)
+                          grid(ilevel)%rho(ix,iy)=grid(ilevel)%rho(ix,iy)+var(i,ind,1)*dxline*weight/(zzmax-zzmin)
+                        endif
                       endif
                     endif
                   endif ! endif makemap
@@ -1623,7 +1625,7 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
                   grid(lmax)%map(ix,iy)=grid(ilevel)%map(i,j) ! update the variable map
                   grid(lmax)%rho(ix,iy)=grid(ilevel)%rho(i,j) ! update the weight map with the density at *this* position
                 endif
-              else ! average
+              else ! average or sum
                 grid(lmax)%map(ix,iy)=grid(lmax)%map(ix,iy) + grid(ilevel)%map(i,j)
                 grid(lmax)%rho(ix,iy)=grid(lmax)%rho(ix,iy) + grid(ilevel)%rho(i,j)
               endif
@@ -1636,10 +1638,10 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
         nxmap=imax-imin+1 ! projected average density
         nymap=jmax-jmin+1
         allocate(tmpmap(nxmap,nymap))
-        if(typ > 0 .and. .not. sum) then
-          tmpmap=grid(lmax)%map(imin:imax,jmin:jmax)/grid(lmax)%rho(imin:imax,jmin:jmax)
-        else
+        if(maxval .or. maxrho .or. sum) then
           tmpmap=grid(lmax)%map(imin:imax,jmin:jmax)
+        else ! average
+          tmpmap=grid(lmax)%map(imin:imax,jmin:jmax)/grid(lmax)%rho(imin:imax,jmin:jmax)
         endif    
       else ! this is never done ?  (nx_sample = 0 and is never changed)
         if(ny_sample==0) ny_sample = (jmax-jmin+1)/(imax-imin+1) !nx_sample
@@ -1652,10 +1654,10 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
           do j=0,ny_sample
             iy=int(dble(j)/dble(ny_sample)*dble(jmax-jmin+1))+jmin
             iy=min(iy,jmax)
-            if(typ > 0 .and. .not. sum) then
-              tmpmap=grid(lmax)%map(imin:imax,jmin:jmax)/grid(lmax)%rho(imin:imax,jmin:jmax)
-            else
+            if(maxval .or. maxrho .or. sum) then
               tmpmap=grid(lmax)%map(imin:imax,jmin:jmax)
+            else ! average
+              tmpmap=grid(lmax)%map(imin:imax,jmin:jmax)/grid(lmax)%rho(imin:imax,jmin:jmax)
             endif    
           end do
         end do
