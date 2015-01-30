@@ -704,6 +704,10 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
           outval = 'solturb'
           outvalunit = 'km/s/pc'
           scale_map = scale_vkms / scale_lpc
+        case (24) ! mass
+          outval = 'mass'
+          outvalunit = 'Msun'
+          scale_map = scale_msun
         case default ! density
           outval = 'rho'
           outvalunit = 'cm^-3'
@@ -1388,6 +1392,10 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
       
                         nablav1(i,ind) = sqrt(nablav1(i,ind)**2+nablav2(i,ind)**2+nablav3(i,ind)**2)
                         map(i) = nablav1(i,ind) /(2.*boxlen*dx)
+                        
+                      case(24) ! Mass
+                        map(i) = var(i,ind,1)*(boxlen*dx)**3
+                        
                     end select
                   endif ! end makemap
         
@@ -1515,7 +1523,7 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
                     if(maxval)then
                       if(grid(ilevel)%map(ix,iy)<map(i))then
                         grid(ilevel)%map(ix,iy)=map(i) ! update the variable map
-                        grid(ilevel)%rho(ix,iy)=var(i,ind,1)  ! not important ! update the weight map with the density at *this* position
+                        grid(ilevel)%rho(ix,iy)=var(i,ind,1)  ! not used. Left for consistency
                       endif
                     else
                       if(maxrho)then
@@ -1525,8 +1533,8 @@ scale_surf = scale_d * scale_l  / 1.9891D33 * (3.085677581282D18)**2 ! (density 
                         endif
                       else
                         if(sum) then
-                          grid(ilevel)%map(ix,iy)=grid(ilevel)%map(ix,iy)+map(i)
-                          grid(ilevel)%rho(ix,iy)=grid(ilevel)%rho(ix,iy)+var(i,ind,1)
+                          grid(ilevel)%map(ix,iy)=grid(ilevel)%map(ix,iy)+map(i)*4.**(ilevel-lmax) ! sum the fraction of the quantity that overlaps the lmax size pixel on the map = total / 2^(2(lmax-ilev))
+                          grid(ilevel)%rho(ix,iy)=grid(ilevel)%rho(ix,iy)+var(i,ind,1)  ! not used. Left for consistency
                         else ! density weighted average
                           grid(ilevel)%map(ix,iy)=grid(ilevel)%map(ix,iy)+map(i)*var(i,ind,1)*dxline*weight/(zzmax-zzmin)
                           grid(ilevel)%rho(ix,iy)=grid(ilevel)%rho(ix,iy)+var(i,ind,1)*dxline*weight/(zzmax-zzmin)
